@@ -34,7 +34,7 @@ Unprioritized initial set of potential tasks based on ideas above
 
 ### Kubernetes
 - [ ] Imrpove Kubelet PodResources APIs to expose information about resources known to Kubelet (extended resources, device plugins instances...)
-- [ ] Obsolete dockershim to facilitate evolution of CRI APIs
+- [ ] [Deprecate dockershim](https://github.com/kubernetes/enhancements/pull/1985) to facilitate evolution of CRI APIs
 - [ ] New [CRI API](https://github.com/container-orchestrated-devices/resource-management-improvements-wg/issues/1) for fetching available resources from Runtimes (including hotplug scenarios)
 - [ ] Pass container names/resources during Pod(Sandbox) Create/Update messages to enable proper resource pre-allocation for VM-based runtimes.
 - [ ] Pass all resources requests/limits to container Create/Update messages, to be able to implement full control on Runtime level 
