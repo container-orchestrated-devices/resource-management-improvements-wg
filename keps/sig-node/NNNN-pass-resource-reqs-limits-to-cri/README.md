@@ -66,12 +66,12 @@ This KEP proposes a CRI API extension for disclosing container
 
 ## Motivation
 
-Currently, kubelet is (only) responsible for selecting CPUs and
-memories to be allocated for a container by sending
-`UpdateContainerResources` request to CRI. And, even there the original details
-of the resource spec may be lost. Non-native resources such as extended
-resources and the device plugin resources are not visible to container runtimes
-at all.
+Currently, kubelet is (only) responsible for selecting CPUs and memories to be
+allocated for a container which is achieved by setting up
+`LinuxContainerResources`/`WindowsContainerResources` in `CreateContainer` and
+`UpdateContainerResources` requests. And, even there the original details of
+the resource spec is lost. Non-native resources such as extended resources and
+the device plugin resources are not visible to container runtimes at all.
 
 However, VM-based runtimes such as
 [Kata containers](https://katacontainers.io/),
