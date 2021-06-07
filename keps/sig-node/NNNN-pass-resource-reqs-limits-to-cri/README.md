@@ -56,10 +56,10 @@ Items marked with (R) are required *prior to targeting to a milestone / release*
 ## Summary
 
 kubelet does not provide complete information about the container
-`resources` specification (`requires` and `limits`) to CRI. However,
-we have identified various use cases detailed knowledge of all the
-resources can be utilized in container runtimes for more optimal resource
-allocation improving application performance and reducing interference.
+`resources` specification (`requires` and `limits`) to CRI. However, we have
+identified various use cases where detailed knowledge of all the resources can
+be utilized in container runtimes for more optimal resource allocation to
+improve application performance and reduce cross-application interference.
 
 This KEP proposes a CRI API extension for disclosing container
 `resources` information to container runtimes.
@@ -69,9 +69,9 @@ This KEP proposes a CRI API extension for disclosing container
 Currently, kubelet is (only) responsible for selecting CPUs and
 memories to be allocated for a container by sending
 `UpdateContainerResources` request to CRI. And, even there the original details
-of the resource spec is lost. Non-native resources such as extended resources
-and the device plugin resources are not visible
-to container runtimes at all.
+of the resource spec may be lost. Non-native resources such as extended
+resources and the device plugin resources are not visible to container runtimes
+at all.
 
 However, VM-based runtimes such as
 [Kata containers](https://katacontainers.io/),
@@ -82,12 +82,12 @@ platform-optimized container runtimes,
 down to programs running in containers would benefit on getting full
 resource information. Extending the CRI API in a backwards-compatible way
 provides a holistic view of the resource usage of containers to all these
-compoments, paving the way for improved resource allocation without breaking
+components, paving the way for improved resource allocation without breaking
 any existing use cases.
 
-This KEP eases the pressure of handling resource allocations on exotic
-hardware configurations in kubelet by making is possible to do it in container
-runtimes, instead.
+This KEP eases the pressure of handling resource allocations on exotic hardware
+configuration in kubelet by allowing resource allocation to happen in the
+container runtime instead.
 
 ### Goals
 
