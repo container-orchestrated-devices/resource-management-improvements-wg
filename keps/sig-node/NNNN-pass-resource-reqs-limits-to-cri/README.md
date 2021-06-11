@@ -141,61 +141,59 @@ information of resource requests of all containers in a pod.
 The structure of `PodResourceConfig`:
 
 ```protobuf
-import "k8s.io/apimachinery/pkg/api/resource/generated.proto";
+ import "k8s.io/apimachinery/pkg/api/resource/generated.proto";
+ 
+ message PodSandboxConfig {
+ 
+ ...
+ 
+     map<string, string> annotations = 7;
+     // Optional configurations specific to Linux hosts.
+     LinuxPodSandboxConfig linux = 8;
++
++    // Kubernetes resource spec of the containers in the pod
++    PodResourceConfig pod_resources = 9;
+ }
+ 
+ message ContainerConfig {
+ 
+ ...
+ 
+     // Configuration specific to Linux containers.
+     LinuxContainerConfig linux = 15;
+     // Configuration specific to Windows containers.
+     WindowsContainerConfig windows = 16;
++
++    // Kubernetes resource spec of the container
++    ContainerResourceConfig container_resources = 17;
+ }
+ 
+ message UpdateContainerResourcesRequest {
+     // ID of the container to update.
+     string container_id = 1;
+     // Resource configuration specific to Linux containers.
+     LinuxContainerResources linux = 2;
+     // Resource configuration specific to Windows containers.
+     WindowsContainerResources windows = 3;
+     // Unstructured key-value map holding arbitrary additional information for
+     // container resources updating. This can be used for specifying experimental
+     // resources to update or other options to use when updating the container.
+     map<string, string> annotations = 4;
++
++    // Kubernetes resource spec of the container
++    ContainerResourceConfig container_resources = 5;
+ }
+ 
++message PodResourceConfig {
++    map<string, ContainerResourceConfig> init_containers = 1;
++    map<string, ContainerResourceConfig> containers = 2;
++}
 
-message PodSandboxConfig {
-
-...
-
-    map<string, string> annotations = 7;
-    // Optional configurations specific to Linux hosts.
-    LinuxPodSandboxConfig linux = 8;
-
-    // Kubernetes resource spec of the containers in the pod
-    PodResourceConfig pod_resources = 9;
-}
-
-message ContainerConfig {
-
-...
-
-    // Configuration specific to Linux containers.
-    LinuxContainerConfig linux = 15;
-    // Configuration specific to Windows containers.
-    WindowsContainerConfig windows = 16;
-
-    // Kubernetes resource spec of the container
-    ContainerResourceConfig container_resources = 17;
-}
-
-message UpdateContainerResourcesRequest {
-    // ID of the container to update.
-    string container_id = 1;
-    // Resource configuration specific to Linux containers.
-    LinuxContainerResources linux = 2;
-    // Resource configuration specific to Windows containers.
-    WindowsContainerResources windows = 3;
-    // Unstructured key-value map holding arbitrary additional information for
-    // container resources updating. This can be used for specifying experimental
-    // resources to update or other options to use when updating the container.
-    map<string, string> annotations = 4;
-
-    // Kubernetes resource spec of the container
-    ContainerResourceConfig container_resources = 5;
-}
-
-
-
-message PodResourceConfig {
-    map<string, ContainerResourceConfig> init_containers = 1;
-    map<string, ContainerResourceConfig> containers = 2;
-}
-
-message ContainerResourceConfig {
-    // Requests and limits hold corresponding container resources data.
-    map<string, k8s.io.apimachinery.pkg.api.resource.Quantity> requests = 1;
-    map<string, k8s.io.apimachinery.pkg.api.resource.Quantity> limits = 2;
-}
++message ContainerResourceConfig {
++    // Requests and limits hold corresponding container resources data.
++    map<string, k8s.io.apimachinery.pkg.api.resource.Quantity> requests = 1;
++    map<string, k8s.io.apimachinery.pkg.api.resource.Quantity> limits = 2;
++}
 ```
 
 Example: Pod specification:
