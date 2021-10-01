@@ -56,21 +56,22 @@ Items marked with (R) are required *prior to targeting to a milestone / release*
 ## Summary
 
 kubelet does not provide complete information about the container
-`resources` specification (`requires` and `limits`) to CRI. However,
-many use-cases can be identified where detailed knowledge of all the
-resources can be utilized for better resource allocation or fine grained
-pod sandbox configuration.
+`resources` specification (`requires` and `limits`) to CRI. However, we have
+identified various use cases where detailed knowledge of all the resources can
+be utilized in container runtimes for more optimal resource allocation to
+improve application performance and reduce cross-application interference.
 
 This KEP proposes a CRI API extension for disclosing container
 `resources` information to container runtimes.
 
 ## Motivation
 
-Currently, kubelet is (only) responsible for selecting CPUs and
-memories to be allocated for a container by sending
-`UpdateContainerResources` request to CRI. Non-native resources such
-as extended resources and the device plugin resources are not visible
-to container runtimes.
+Currently, kubelet is (only) responsible for selecting CPUs and memories to be
+allocated for a container which is achieved by setting up
+`LinuxContainerResources`/`WindowsContainerResources` in `CreateContainer` and
+`UpdateContainerResources` requests. And, even there the original details of
+the resource spec is lost. Non-native resources such as extended resources and
+the device plugin resources are not visible to container runtimes at all.
 
 However, VM-based runtimes such as
 [Kata containers](https://katacontainers.io/),
@@ -79,23 +80,24 @@ platform-optimized container runtimes,
 [runC](https://github.com/opencontainers/runc) wrappers,
 [NRI](https://github.com/containerd/nri) plugins,
 down to programs running in containers would benefit on getting full
-resource information.
+resource information. Extending the CRI API in a backwards-compatible way
+provides a holistic view of the resource usage of containers to all these
+components, paving the way for improved resource allocation without breaking
+any existing use cases.
 
-CRI API extension proposed in this KEP makes the big picture of
-resources available to all components mentioned above.
-
-This KEP eases the pressure of handling resource allocations on exotic
-hardware configurations in kubelet by enabling it on CRI level.
+This KEP eases the pressure of handling resource allocations on exotic hardware
+configuration in kubelet by allowing resource allocation to happen in the
+container runtime instead.
 
 ### Goals
 
-This KEP removes artifical limitation of CRI layer getting information
-on pod and container resource requests. This solves many problems and
-enables optimizations on CRIs and workloads.
+- make container resource spec transparently visible on CRI level
+- enable runtime-level optimization of resource allocation
 
 ### Non-Goals
 
-This KEP does not aim to change/optimize kubelet resource allocation.
+- change/optimize kubelet resource handling
+- change existing behavior of CRI
 
 ## Proposal
 
@@ -126,8 +128,7 @@ specific details.
 #### Story 3
 
 As a cluster administrator, I want to install an OCI hook/runc
-wrapper/NRI plugin that handles custom container resource control
-using the information from the container resource requests.
+wrapper/NRI plugin that does customized resource handling.
 
 ### ResourceConfig
 
@@ -139,35 +140,65 @@ information of resource requests of all containers in a pod.
 
 The structure of `PodResourceConfig`:
 
-```
-message PodResourceConfig {
-    repeated ContainerResourceConfig init_containers = 1;
-    repeated ContainerResourceConfig containers = 2;
-}
+```protobuf
+ import "k8s.io/apimachinery/pkg/api/resource/generated.proto";
+ 
+ message PodSandboxConfig {
+ 
+ ...
+ 
+     map<string, string> annotations = 7;
+     // Optional configurations specific to Linux hosts.
+     LinuxPodSandboxConfig linux = 8;
++
++    // Kubernetes resource spec of the containers in the pod
++    PodResourceConfig pod_resources = 9;
+ }
+ 
+ message ContainerConfig {
+ 
+ ...
+ 
+     // Configuration specific to Linux containers.
+     LinuxContainerConfig linux = 15;
+     // Configuration specific to Windows containers.
+     WindowsContainerConfig windows = 16;
++
++    // Kubernetes resource spec of the container
++    ContainerResourceConfig container_resources = 17;
+ }
+ 
+ message UpdateContainerResourcesRequest {
+     // ID of the container to update.
+     string container_id = 1;
+     // Resource configuration specific to Linux containers.
+     LinuxContainerResources linux = 2;
+     // Resource configuration specific to Windows containers.
+     WindowsContainerResources windows = 3;
+     // Unstructured key-value map holding arbitrary additional information for
+     // container resources updating. This can be used for specifying experimental
+     // resources to update or other options to use when updating the container.
+     map<string, string> annotations = 4;
++
++    // Kubernetes resource spec of the container
++    ContainerResourceConfig container_resources = 5;
+ }
+ 
++message PodResourceConfig {
++    map<string, ContainerResourceConfig> init_containers = 1;
++    map<string, ContainerResourceConfig> containers = 2;
++}
 
-message ContainerResourceConfig {
-    // Name is the name of the container whose resources
-    // are specified in this structure.
-    string name = 2;
-
-    // Requests and limits hold corresponding container resources data.
-    repeated ContainerResource requests = 3;
-    repeated ContainerResource limits = 4;
-}
-
-message ContainerResource {
-    // Resource is the requested/limited resource.
-    // Examples: "cpu", "memory", "company.com/special-hardware"
-    string resource = 1;
-    // Value is the user-specified count/amount of the resource.
-    // Examples: "100M", "250m", "1"
-    string value = 2;
-}
++message ContainerResourceConfig {
++    // Requests and limits hold corresponding container resources data.
++    map<string, k8s.io.apimachinery.pkg.api.resource.Quantity> requests = 1;
++    map<string, k8s.io.apimachinery.pkg.api.resource.Quantity> limits = 2;
++}
 ```
 
 Example: Pod specification:
 
-```
+```yaml
 apiVersion: v1
 kind: Pod
 ...
@@ -196,35 +227,25 @@ spec:
 ```
 
 Kubelet constructs `ResourceConfig`, sketched here in `yaml` format:
-```
+```yaml
 PodResourceConfig:
   containers:
-    - name: db
+    db
       requests:
-        - resource: cpu
-          value: 1900m
-        - resource: memory
-          value: 10G
+        cpu: 1900m
+        memory: 10G
       limits:
-        - resource: cpu
-          value: 1900m
-        - resource: memory
-          value: 10G
-    - name: db-sync-with-hw-accel
+       cpu: 1900m
+       memory: 10G
+    db-sync-with-hw-accel
       requests:
-        - resource: cpu
-          value: 100m
-        - resource: memory
-          value: 100M
-        - resource: intel.com/qat
-          value: 2
+        cpu: 100m
+        memory: 100M
+        intel.com/qat: 2
       limits:
-        - resource: cpu
-          value: 100m
-        - resource: memory
-          value: 100M
-        - resource: intel.com/qat
-          value: 2
+        cpu: 100m
+        memory: 100M
+        intel.com/qat: 2
 ```
 
 When the CRI layer gets this information, it can make sure that the
